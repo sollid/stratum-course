@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "step": "readme-check",
+  "title": "Engine test: README check",
+  "file": "README.md",
+  "skipped": "Пропущено: файла нет.",
+  "rules": [
+    {"id": "readme-exists", "type": "file_exists", "on_fail": "failed", "ok": "Файл README.md на месте.", "fail": "Файла README.md нет в папке."},
+    {"id": "readme-has-line", "type": "min_lines", "min": 1, "on_fail": "failed", "ok": "Непустых строк: {n}, нужно не меньше {min}.", "fail": "Непустых строк: {n}, нужно не меньше {min}."},
+    {"id": "notes-size", "type": "max_items", "list": "Notes", "max": 3, "on_fail": "almost", "ok": "В списке Notes пунктов: {n}, в пределах ориентира {max}.", "fail": "В списке Notes пунктов: {n}, ориентир до {max}."},
+    {"id": "no-secret", "type": "forbidden_text", "text": "password=", "on_fail": "failed", "ok": "Паролей в файле не найдено.", "fail": "В файле есть строка, которой там быть не должно."}
+  ]
+}

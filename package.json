@@ -1,0 +1,17 @@
+{
+  "name": "stratum-course",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Плагин курса Stratum (тренажёр по Claude Code): каталог, архив и тесты движка.",
+  "scripts": {
+    "test": "node tests/pair-matrix.mjs && node tests/selfcheck.mjs && node tests/pack-check.mjs",
+    "pair": "node tests/pair-matrix.mjs",
+    "selfcheck": "node tests/selfcheck.mjs",
+    "pack": "node tools/pack.mjs",
+    "pack:check": "node tools/pack.mjs --check"
+  },
+  "devDependencies": {
+    "fflate": "0.8.3"
+  }
+}

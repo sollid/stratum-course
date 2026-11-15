@@ -1,0 +1,16 @@
+#!/bin/sh
+# Вход для навыков: course-run <connect|step-report|selfcheck|next> <аргументы...>. Нужен только sh (Mac).
+# На Windows (в том числе из Git Bash) всегда запускается PowerShell-вариант: у него права на файл токена настоящие, у sh в Git Bash их нет.
+here=$(cd "$(dirname "$0")" && pwd)
+name="$1"
+case "$name" in
+  connect|step-report|selfcheck|next) shift ;;
+  *) echo "error: usage: course-run connect|step-report|selfcheck|next ..." >&2; exit 2 ;;
+esac
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    # PowerShell — по полному пути из системной папки, а не по имени из PATH
+    ps="$(cygpath -u "${SYSTEMROOT:-${SystemRoot:-C:\\Windows}}")/System32/WindowsPowerShell/v1.0/powershell.exe"
+    exec "$ps" -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$here/../scripts/run.ps1")" "$name" "$@" ;;
+  *) exec sh "$here/../scripts/$name.sh" "$@" ;;
+esac

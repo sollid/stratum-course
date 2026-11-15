@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "step": "selfcheck",
+  "title": "Install self-check",
+  "file": "README.md",
+  "skipped": "Пропущено: файла нет.",
+  "rules": [
+    {"id": "readme-exists", "type": "file_exists", "on_fail": "failed", "ok": "Файл README.md на месте.", "fail": "Файла README.md нет в папке."},
+    {"id": "readme-has-line", "type": "min_lines", "min": 1, "on_fail": "failed", "ok": "В README.md непустых строк: {n}, нужно не меньше {min}.", "fail": "В README.md непустых строк: {n}, нужно не меньше {min}."}
+  ]
+}

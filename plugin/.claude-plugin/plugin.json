@@ -1,0 +1,10 @@
+{
+  "name": "course",
+  "displayName": "Stratum: курс",
+  "version": "0.1.0",
+  "description": "Плагин курса Stratum (тренажёр по Claude Code): проверка установки, привязка компьютера к сайту курса, отправка отметки о шаге. Заданий в плагине нет: их отдаёт сайт курса.",
+  "author": { "name": "Stratum" },
+  "homepage": "https://github.com/sollid/stratum-course",
+  "repository": "https://github.com/sollid/stratum-course",
+  "keywords": ["course", "training", "claude-code"]
+}

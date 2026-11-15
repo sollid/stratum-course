@@ -1,0 +1,19 @@
+{
+  "name": "stratum-course",
+  "description": "Каталог плагина курса Stratum (тренажёр по Claude Code).",
+  "owner": {
+    "name": "Stratum"
+  },
+  "plugins": [
+    {
+      "name": "course",
+      "description": "Плагин курса Stratum (тренажёр по Claude Code): проверка установки, привязка компьютера к сайту курса, отправка отметки о шаге. Заданий в плагине нет: их отдаёт сайт курса.",
+      "version": "0.1.0",
+      "source": {
+        "source": "archive",
+        "url": "https://github.com/sollid/stratum-course/releases/download/v0.1.0/stratum-course-0.1.0.zip",
+        "sha256": "9ed55c6b202444fe099fbc6cc5ee5dee113911918849e2928501f32ef9534b9e"
+      }
+    }
+  ]
+}
