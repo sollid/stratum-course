@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "engine": 99,
+  "step": "readme-newer",
+  "file": "README.md",
+  "skipped": "Пропущено: файла нет.",
+  "rules": [
+    {"id": "readme-exists", "type": "file_exists", "on_fail": "failed", "ok": "Файл README.md на месте.", "fail": "Файла README.md нет в папке."}
+  ]
+}

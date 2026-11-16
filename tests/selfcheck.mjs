@@ -26,7 +26,13 @@ const SYSTEM_PS_PATH = ['C:\\Windows\\System32\\WindowsPowerShell\\v1.0', 'C:\\W
 const gitDir = win ? dirname(dirname(GIT_BASH)) : '';
 const SH_BARE_PATH = win ? [join(gitDir, 'usr', 'bin'), join(gitDir, 'mingw64', 'bin')].join(';') : '/usr/bin:/bin';
 
-function envFor(v, { fake, withShim = true } = {}) {
+// Подмена awk для пробы длины в байтах: на программу «print length» отвечает числом из awkLen, остальное передаёт настоящему awk
+const awkDir = join(tmpRoot, 'awkshim');
+mkdirSync(awkDir);
+writeFileSync(join(awkDir, 'awk'), '#!/bin/sh\ncase "$*" in *"print length"*) printf "%s\\n" "$FAKE_AWK_LEN"; exit 0 ;; esac\nexec /usr/bin/awk "$@"\n');
+if (!win) chmodSync(join(awkDir, 'awk'), 0o755);
+
+function envFor(v, { fake, withShim = true, awkLen } = {}) {
   const e = { ...process.env };
   for (const k of Object.keys(e)) if (/^(COURSE_SITE_URL|CLAUDE_PLUGIN_DATA|FAKE_CLAUDE_OUT)$/i.test(k)) delete e[k];
   if (fake !== undefined) e.FAKE_CLAUDE_OUT = fake;
@@ -36,6 +42,7 @@ function envFor(v, { fake, withShim = true } = {}) {
   } else if (win) {
     e.Path = v === 'ps' ? SYSTEM_PS_PATH : SH_BARE_PATH; delete e.PATH;
   } else e.PATH = SH_BARE_PATH;
+  if (awkLen !== undefined) { e.FAKE_AWK_LEN = String(awkLen); if (win) e.Path = `${awkDir};${e.Path}`; else e.PATH = `${awkDir}:${e.PATH}`; }
   return e;
 }
 
@@ -77,6 +84,14 @@ for (const v of variants) {
   const newer = run(v, course, 'selfcheck', [], { fake: '2.10.0 (Claude Code)' });
   check(`[${v}] версия 2.10.0 новее 2.1.287 (сравнение числовое, не по строке)`, newer.code === 0, `${newer.code} ${newer.out}`);
 
+  // Проба длины в байтах: настоящий awk отвечает 2 (она часть успешной самопроверки выше); подменённый, считающий знаки, — честный отказ
+  if (v === 'sh') {
+    const bad = run(v, course, 'selfcheck', [], { fake: '2.1.300 (Claude Code)', awkLen: 1 });
+    check(`[${v}] awk считает знаки, а не байты (ответ 1): код 45, «проверка шагов не заработает», «напишите организаторам», в строке для организаторов ответ awk, «Установка работает» нет`, bad.code === 45 && bad.out.includes('проверка шагов не заработает') && bad.out.includes('напишите организаторам') && bad.out.includes('awk length=«1»') && !bad.out.includes('Установка работает'), `${bad.code} ${bad.out}`);
+    const ok2 = run(v, course, 'selfcheck', [], { fake: '2.1.300 (Claude Code)', awkLen: 2 });
+    check(`[${v}] подменённый awk с ответом 2: проба проходит, установка работает`, ok2.code === 0 && ok2.out.startsWith('Установка работает.'), `${ok2.code} ${ok2.out}`);
+  }
+
   const junk = run(v, course, 'selfcheck', [], { fake: 'hello' });
   check(`[${v}] версия не распознана: код 42, одно действие`, junk.code === 42 && junk.out.includes('не удалось определить версию') && junk.out.includes('Что сделать:'), `${junk.code} ${junk.out}`);
   const none = run(v, course, 'selfcheck', [], { withShim: false });
@@ -106,8 +121,10 @@ for (const v of variants) {
   check(`[${v}] без привязки с --soft: код 0, тот же текст`, n1s.code === 0 && n1s.out === n1.out, `${n1s.code}`);
   const SECRET = 'tkn_ZZYYXXWWVVUUTTSSRRQQPPOONNMMLLKK1234';
   writeFileSync(join(d1, 'device-token.txt'), `token=${SECRET}\ndevice_id=abc\nsite=http://localhost\n`);
-  const n2 = run(v, course, 'next', ['--data', fwd(d1)]);
-  check(`[${v}] с привязкой, но без задания: код 0, честно «задание пока не пришло», версия плагина названа`, n2.code === 0 && n2.out.includes('задание для вашего шага пока не пришло') && /версия плагина \d+\.\d+\.\d+/.test(n2.out) && n2.out.includes('/plugin marketplace update stratum-course'), `${n2.code} ${n2.out}`);
+  // С привязкой, но в папке без метки учебной папки: ничего не кладётся и не запрашивается, человеку сказано, что делать
+  const plain = mkdtempSync(join(tmpRoot, 'plain-'));
+  const n2 = run(v, course, 'next', ['--data', fwd(d1), '--dir', fwd(plain)]);
+  check(`[${v}] с привязкой, но папка не учебная: код 41, «Эта папка не учебная», названа /course:start, в папке пусто`, n2.code === 41 && n2.out.includes('Эта папка не учебная') && n2.out.includes('/course:start') && n2.err === '' && readdirSync(plain).length === 0, `${n2.code} ${n2.out}`);
   check(`[${v}] токен не печатается`, !n1.out.includes(SECRET) && !n2.out.includes(SECRET) && !n2.err.includes(SECRET));
   writeFileSync(join(d1, 'device-token.txt'), 'garbage without token\n');
   const n3 = run(v, course, 'next', ['--data', fwd(d1)]);

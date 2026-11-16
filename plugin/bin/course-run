@@ -1,11 +1,11 @@
 #!/bin/sh
-# Вход для навыков: course-run <connect|step-report|selfcheck|next> <аргументы...>. Нужен только sh (Mac).
+# Вход для навыков: course-run <connect|step-report|selfcheck|next|folder> <аргументы...>. Нужен только sh (Mac).
 # На Windows (в том числе из Git Bash) всегда запускается PowerShell-вариант: у него права на файл токена настоящие, у sh в Git Bash их нет.
 here=$(cd "$(dirname "$0")" && pwd)
 name="$1"
 case "$name" in
-  connect|step-report|selfcheck|next) shift ;;
-  *) echo "error: usage: course-run connect|step-report|selfcheck|next ..." >&2; exit 2 ;;
+  connect|step-report|selfcheck|next|folder) shift ;;
+  *) echo "error: usage: course-run connect|step-report|selfcheck|next|folder ..." >&2; exit 2 ;;
 esac
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)

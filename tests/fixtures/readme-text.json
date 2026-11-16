@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "engine": 2,
+  "step": "readme-text",
+  "file": "README.md",
+  "skipped": "Пропущено: файла нет.",
+  "rules": [
+    {"id": "readme-exists", "type": "file_exists", "on_fail": "failed", "ok": "Файл README.md на месте.", "fail": "Файла README.md нет в папке."},
+    {"id": "has-phrase", "type": "contains_text", "text": "phrase that is not in the sample", "match": "nocase", "on_fail": "failed", "ok": "Фраза есть.", "fail": "Фразы нет."}
+  ]
+}

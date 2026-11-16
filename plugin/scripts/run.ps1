@@ -1,7 +1,7 @@
-# Entry for bin\course-run.cmd: course-run <connect|step-report|selfcheck|next> <arguments...>. ASCII only.
+# Entry for bin\course-run.cmd: course-run <connect|step-report|selfcheck|next|folder> <arguments...>. ASCII only.
 $name = [string]$args[0]
-if (@('connect', 'step-report', 'selfcheck', 'next') -cnotcontains $name) {
-    [Console]::Error.WriteLine('usage: course-run connect|step-report|selfcheck|next ...')
+if (@('connect', 'step-report', 'selfcheck', 'next', 'folder') -cnotcontains $name) {
+    [Console]::Error.WriteLine('usage: course-run connect|step-report|selfcheck|next|folder ...')
     exit 2
 }
 $rest = @()

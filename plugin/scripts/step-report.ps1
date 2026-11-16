@@ -23,46 +23,21 @@ $dataDir = Get-DataDir $o
 $tokenPath = Join-Path $dataDir 'device-token.txt'
 $checkVersion = '1'
 
-function Run-Check([string]$rules, [string]$dir) {
-    # A quote inside a value would add parameters of its own: refuse. Trailing backslashes are doubled so they do not escape the closing quote.
-    foreach ($v in @($rules, $dir)) { if ($v.Contains('"')) { return @{ code = 2; out = '' } } }
-    $rules = $rules -replace '(\\+)$', '$1$1'
-    $dir = $dir -replace '(\\+)$', '$1$1'
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $psi.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $PSScriptRoot 'check.ps1') + '" -Rules "' + $rules + '" -Dir "' + $dir + '"'
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.StandardOutputEncoding = $script:Utf8
-    $p = [System.Diagnostics.Process]::Start($psi)
-    $out = $p.StandardOutput.ReadToEnd()
-    [void]$p.StandardError.ReadToEnd()
-    $p.WaitForExit()
-    return @{ code = $p.ExitCode; out = $out }
-}
-
-# Verdict and reason
+# Verdict and reason (Run-Check, Invoke-Check and Get-ReasonCode are in lib.ps1)
 $passed = $false
 $reason = ''
 if ($o['rules']) {
     $rulesPath = [string]$o['rules']
     $dirArg = [string]$o['dir']
     if (-not $dirArg) { Usage }
-    $c = $null
-    try { $c = Run-Check $rulesPath $dirArg } catch { $c = $null }
-    if ($null -eq $c -or $c.code -ne 0 -or -not ($c.out -match '(?m)^verdict: (accepted|almost|disputed|failed)\s*$')) { Fail 'report.checkfail' $null 13 }
-    $passed = ($Matches[1] -eq 'accepted')
+    $c = Invoke-Check $rulesPath $dirArg
+    if ($c.newer) { Fail 'report.rulesnewer' $null 15 }
+    if ($c.code -ne 0 -or -not $c.verdict) { Fail 'report.checkfail' $null 13 }
+    $passed = ($c.verdict -eq 'accepted')
     $reasonsPath = $rulesPath -replace '(\.rules)?\.json$', '.reasons.txt'
-    $map = $null
-    if ($reasonsPath -ne $rulesPath) { $map = Read-KV $reasonsPath }
-    if ($map) {
-        foreach ($l in [regex]::Split($c.out, "\r?\n")) {
-            $m = [regex]::Match($l, '^([^:]+): (almost|disputed|failed) - ')
-            if ($m.Success -and $map.ContainsKey($m.Groups[1].Value)) { $reason = [string]$map[$m.Groups[1].Value]; break }
-        }
-    }
+    if ($reasonsPath -eq $rulesPath) { $reasonsPath = '' }
+    # The code comes from the reasons file; a rule of a new type without a code there gets the default code of its type (see Get-ReasonCode in lib.ps1)
+    $reason = Get-ReasonCode $rulesPath $reasonsPath $c.out $c.verdict
     try {
         $rv = [string]((([System.IO.File]::ReadAllText($rulesPath, $script:Utf8).TrimStart([char]0xFEFF)) | ConvertFrom-Json).version)
         if ($rv -match '^[0-9A-Za-z.+-]{1,20}$') { $checkVersion = $rv }
@@ -85,7 +60,7 @@ $site = [string]$kv['site']
 if (-not (Test-SiteUrl $site)) { Fail 'report.nosite' $null 20 }
 # The token belongs to the address stored with it. If the settings now point elsewhere, send nothing and explain.
 $setting = Get-SiteSetting $dataDir
-if ($setting.state -eq 'ok' -and $setting.url -ne $site) { Fail 'report.sitemismatch' @{ old = $site; new = $setting.url } 14 }
+if ($setting.state -eq 'ok' -and -not (Test-Same $setting.url $site)) { Fail 'report.sitemismatch' @{ old = $site; new = $setting.url } 14 }
 $token = [string]$kv['token']
 
 $passedText = 'false'
@@ -97,7 +72,7 @@ $body += '}'
 for ($attempt = 1; $attempt -le 3; $attempt++) {
     $r = Invoke-Site $site '/api/plugin/step' $body $token
     $j = ConvertFrom-Flat $r.body
-    if ($r.status -eq 200 -and $j -and $j.status -eq 'recorded') {
+    if ($r.status -eq 200 -and $j -and (Test-Same ([string]$j.status) 'recorded')) {
         if ($j.repeated -eq $true) { Fail 'report.repeated' $null 0 }
         if ($passed) { Fail 'report.ok' $null 0 }
         Fail 'report.okfail' $null 0
@@ -107,7 +82,7 @@ for ($attempt = 1; $attempt -le 3; $attempt++) {
         Fail 'report.rejected' $null 11
     }
     if ($r.status -eq 404) { Fail 'report.disabled' @{ site = $site } 22 }
-    if ($r.status -eq 503 -and $j -and $j.error -eq 'preview') { Fail 'report.preview' @{ site = $site } 23 }
+    if ($r.status -eq 503 -and $j -and (Test-Same ([string]$j.error) 'preview')) { Fail 'report.preview' @{ site = $site } 23 }
     if ($r.status -eq 422) { Fail 'report.unknownstep' $null 12 }
     if ($r.status -eq 0 -or $r.status -eq 429 -or $r.status -eq 503) {
         if ($attempt -lt 3) {

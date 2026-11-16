@@ -30,7 +30,7 @@ function Save-Pending($p) {
 function Stop-OnSiteAnswer($site, $r) {
     $j = ConvertFrom-Flat $r.body
     if ($r.status -eq 404) { Fail 'connect.disabled' @{ site = $site } 22 }
-    if ($r.status -eq 503 -and $j -and $j.error -eq 'preview') { Fail 'connect.preview' @{ site = $site } 23 }
+    if ($r.status -eq 503 -and $j -and (Test-Same ([string]$j.error) 'preview')) { Fail 'connect.preview' @{ site = $site } 23 }
 }
 
 function Do-Start {
@@ -109,9 +109,9 @@ function Do-Wait {
         } elseif ($r.status -eq 200) {
             $netFail = $false
             $j = ConvertFrom-Flat $r.body
-            if ($j -and $j.status -eq 'pending') {
+            if ($j -and (Test-Same ([string]$j.status) 'pending')) {
                 $odd = 0; $backoff = [math]::Max($p.interval, 1); $pause = $p.interval
-            } elseif ($j -and $j.status -eq 'ready') {
+            } elseif ($j -and (Test-Same ([string]$j.status) 'ready')) {
                 $tok = [string]$j.token; $dev = [string]$j.device_id; $exp = [string]$j.expires_at
                 if (-not ($tok -match '^[A-Za-z0-9_-]{20,200}$') -or -not ($dev -match '^[A-Za-z0-9-]{8,64}$')) { Remove-Quiet $pendingPath; Fail 'connect.unexpected' @{ status = 200 } 25 }
                 if (-not ($exp -match '^[0-9TZ:.+-]{10,40}$')) { $exp = '' }

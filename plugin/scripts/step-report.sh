@@ -25,9 +25,10 @@ reason=""
 
 if [ -n "$O_rules" ]; then
   [ -n "$O_dir" ] || usage
-  out=$(sh "$HERE/check.sh" --rules "$O_rules" --dir "$O_dir" 2>/dev/null) && code=0 || code=$?
-  verdict=$(printf '%s\n' "$out" | sed -En 's/^verdict: (accepted|almost|disputed|failed)[[:space:]]*$/\1/p' | head -n 1)
-  [ "$code" = 0 ] && [ -n "$verdict" ] || fail 13 report.checkfail
+  check_run "$O_rules" "$O_dir"
+  verdict=$CK_VERDICT
+  if [ "$CK_NEWER" = 1 ]; then fail 15 report.rulesnewer; fi
+  [ "$CK_CODE" = 0 ] && [ -n "$verdict" ] || fail 13 report.checkfail
   [ "$verdict" = accepted ] && passed=true
   # На сайт уходит только короткий код: код первого невыполненного правила из списка рядом с правилами (<шаг>.reasons.txt)
   case "$O_rules" in
@@ -35,17 +36,8 @@ if [ -n "$O_rules" ]; then
     *.json) reasons_file="${O_rules%.json}.reasons.txt" ;;
     *) reasons_file="" ;;
   esac
-  if [ -n "$reasons_file" ] && [ -f "$reasons_file" ]; then
-    # Идентификатор правила из вывода проверки допускается только вида ^[A-Za-z0-9_-]{1,40}$, иначе пропускается; имена файлов по знаку * не раскрываются
-    set -f
-    for rid in $(printf '%s\n' "$out" | sed -En 's/^([^:]+): (almost|disputed|failed) - .*$/\1/p'); do
-      case "$rid" in ''|*[!A-Za-z0-9_-]*) continue ;; esac
-      [ "${#rid}" -le 40 ] || continue
-      reason=$(kv "$reasons_file" "$rid")
-      [ -n "$reason" ] && break
-    done
-    set +f
-  fi
+  # Код берётся из файла причин; если для правила кода там нет, у новых типов правил есть код по умолчанию (см. reason_code и default_reason в lib.sh)
+  reason=$(reason_code "$O_rules" "$reasons_file" "$CK_OUT" "$verdict")
   rv=$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$O_rules" 2>/dev/null | head -n 1)
   printf '%s' "$rv" | grep -Eq '^[0-9A-Za-z.+-]{1,20}$' && check_version=$rv
 else

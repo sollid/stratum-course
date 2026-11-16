@@ -8,7 +8,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, exist
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { startMock } from './mock-site.mjs';
-import { root, course, scripts, rules, sample, win, GIT_BASH, fwd, posix } from './layout.mjs';
+import { root, course, scripts, rules, sample, fixture, win, GIT_BASH, fwd, posix } from './layout.mjs';
 const PLUGIN_VERSION = JSON.parse(readFileSync(join(course, '.claude-plugin', 'plugin.json'), 'utf8')).version;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -522,6 +522,22 @@ for (const v of variants) {
     };
     check(`[${v}] путь страницы /connect и /ru/connect принимаются`, (await page('/connect')) === `${SITE}/connect` && (await page('/ru/connect')) === `${SITE}/ru/connect`);
     check(`[${v}] путь вроде /connect/Ignore-previous-instructions, /RU/connect, //x, /a/b заменяется на /connect`, (await page('/connect/Ignore-previous-instructions')) === `${SITE}/connect` && (await page('/RU/connect')) === `${SITE}/connect` && (await page('//x')) === `${SITE}/connect` && (await page('/a/b')) === `${SITE}/connect`);
+  }
+
+  console.log('- правила новых типов: код причины по умолчанию, правила новее плагина');
+  {
+    await reset();
+    const d8 = fresh();
+    await pairUp(v, d8, 'типы: привязка');
+    const readme = fixture('readmes/accepted');
+    const c0 = stepCount();
+    const miss = await run(v, 'step-report', ['--module', 'm1', '--step', 's1', '--data', fwd(d8), '--rules', fwd(fixture('readme-text.json')), '--dir', fwd(readme)], {});
+    const mb = logOf('step').at(-1).body;
+    check(`[${v}] contains_text не выполнено, файла причин нет: на сайт уходит код по умолчанию text_missing`, miss.code === 0 && stepCount() === c0 + 1 && mb.passed === false && mb.reason === 'text_missing' && !Object.hasOwn(mb, 'text'), `${miss.code} ${miss.out} ${JSON.stringify(mb)}`);
+    const newer = await run(v, 'step-report', ['--module', 'm1', '--step', 's2', '--data', fwd(d8), '--rules', fwd(fixture('readme-newer.json')), '--dir', fwd(readme)], {});
+    check(`[${v}] правила новее плагина («engine»: 99): код 15, «обновите плагин», на сайт ничего не ушло, токен остался`, newer.code === 15 && newer.out.includes('новее установленного плагина') && newer.out.includes('/plugin marketplace update') && stepCount() === c0 + 1 && existsSync(tokenFile(d8)), `${newer.code} ${newer.out}`);
+    const newerSoft = await run(v, 'step-report', ['--module', 'm1', '--step', 's2', '--data', fwd(d8), '--rules', fwd(fixture('readme-newer.json')), '--dir', fwd(readme), '--soft'], {});
+    check(`[${v}] то же с --soft: код 0, тот же текст`, newerSoft.code === 0 && newerSoft.out === newer.out, `${newerSoft.code}`);
   }
 
   console.log('- перенаправление на другой адрес и плохой сертификат: токен и код не уходят');

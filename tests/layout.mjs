@@ -9,6 +9,7 @@ export const scripts = join(course, 'scripts');
 export const bin = join(course, 'bin');
 export const rules = join(root, 'tests', 'fixtures', 'readme-check.json');
 export const sample = (name) => join(root, 'tests', 'fixtures', 'readmes', name);
+export const fixture = (rel) => join(root, 'tests', 'fixtures', ...rel.split('/'));
 export const win = process.platform === 'win32';
 export const GIT_BASH = process.env.COURSE_TEST_GIT_BASH || 'C:\\Program Files\\Git\\bin\\bash.exe';
 export const fwd = (p) => p.replace(/\\/g, '/');
