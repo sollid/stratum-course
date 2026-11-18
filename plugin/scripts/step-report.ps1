@@ -83,7 +83,10 @@ for ($attempt = 1; $attempt -le 3; $attempt++) {
     }
     if ($r.status -eq 404) { Fail 'report.disabled' @{ site = $site } 22 }
     if ($r.status -eq 503 -and $j -and (Test-Same ([string]$j.error) 'preview')) { Fail 'report.preview' @{ site = $site } 23 }
-    if ($r.status -eq 422) { Fail 'report.unknownstep' $null 12 }
+    if ($r.status -eq 422) {
+        if ($j -and (Test-Same ([string]$j.error) 'engine')) { Fail 'report.rulesnewer' $null 15 }
+        Fail 'report.unknownstep' $null 12
+    }
     if ($r.status -eq 0 -or $r.status -eq 429 -or $r.status -eq 503) {
         if ($attempt -lt 3) {
             $w = $r.retry; if ($w -lt 1) { $w = 2 * $attempt }; if ($w -gt 15) { $w = 15 }

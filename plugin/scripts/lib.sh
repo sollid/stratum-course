@@ -9,7 +9,7 @@ trap 'exit 130' INT TERM
 
 CMD=""; SOFT=0; SHOWONLY=0; ARG2=""
 # Уровень движка проверки (тот же, что в check.sh и check.ps1) и предел размера пакета задания в байтах
-ENGINE_LEVEL=2
+ENGINE_LEVEL=3
 TASK_MAX=262144
 O_data=""; O_window=""; O_label=""; O_module=""; O_step=""; O_passed=""; O_reason=""; O_rules=""; O_dir=""; O_checkversion=""
 
@@ -109,6 +109,11 @@ default_reason() {
     min_items) printf 'too_few_items' ;;
     answer) printf 'answer_mismatch' ;;
     no_placeholder) printf 'placeholder_left' ;;
+    contains_some) printf 'too_few_matches' ;;
+    contains_number) printf 'number_missing' ;;
+    each_item_has) printf 'item_without_mark' ;;
+    fields_filled) printf 'field_empty' ;;
+    file_unchanged) printf 'file_changed' ;;
   esac
 }
 
@@ -322,13 +327,13 @@ function utf8ok(s) {
 }
 function seg_ok(s) { return (s ~ /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/) }
 function reserved(s,   b, i) { b = toupper(s); i = index(b, "."); if (i > 0) b = substr(b, 1, i - 1); return (b ~ /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/) }
-function start_ok(p,   n, a, i, base, low) {
+function start_ok(p, csv,   n, a, i, base, low) {
   if (length(p) < 1 || length(p) > 120) return 0
   n = split(p, a, "/")
   if (n > 4) return 0
   for (i = 1; i <= n; i++) { if (!seg_ok(a[i]) || a[i] ~ /\.$/ || reserved(a[i])) return 0 }
   base = a[n]
-  if (base !~ /\.(md|txt)$/) return 0
+  if (base !~ /\.(md|txt)$/ && !(csv && base ~ /\.csv$/)) return 0
   low = tolower(base)
   if (low == "claude.md" || low == "claude.local.md" || low == "agents.md") return 0
   return 1
@@ -385,7 +390,7 @@ mode == "ended" { bad("format") }
     if (rest ~ /^ start [^ ]+$/) {
       p = substr(rest, 8)
       nstart++
-      if (nstart > 8 || !start_ok(p) || (tolower(p) in seen) || tolower(p) == tolower(H["file"])) bad("start")
+      if (nstart > 8 || !start_ok(p, H["check_version"] + 0 >= 3) || (tolower(p) in seen) || tolower(p) == tolower(H["file"])) bad("start")
       seen[tolower(p)] = 1
       cur = out "/start." nstart; printf "" > cur; size[cur] = 0; curstart = 1; curchk = 1; spath[nstart] = p; next
     }
@@ -423,11 +428,11 @@ END {
 }
 
 # start_path_ok <путь>: путь стартового файла по договору (те же проверки, что у разбора пакета в parse_package): 1–4 части из букв, цифр, . _ -, часть не начинается с точки
-# и не кончается точкой, не имя устройства Windows; расширение .md или .txt; имя без учёта регистра не CLAUDE.md и не AGENTS.md; до 120 знаков
+# и не кончается точкой, не имя устройства Windows; расширение .md или .txt (и .csv: разбор пакета пускает его, только если check_version не меньше 3); имя без учёта регистра не CLAUDE.md и не AGENTS.md; до 120 знаков
 start_path_ok() {
   printf '%s' "$1" | LC_ALL=C grep -Eq '^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*){0,3}$' || return 1
   [ "${#1}" -le 120 ] || return 1
-  case "$1" in *.md|*.txt) ;; *) return 1 ;; esac
+  case "$1" in *.md|*.txt|*.csv) ;; *) return 1 ;; esac
   _sb=${1##*/}
   case "$(printf '%s' "$_sb" | LC_ALL=C tr 'A-Z' 'a-z')" in claude.md|claude.local.md|agents.md) return 1 ;; esac
   _pr=$1

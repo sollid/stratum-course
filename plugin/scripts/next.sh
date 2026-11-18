@@ -43,7 +43,7 @@ site_ok "$SITE" || fail 20 next.nosite
 site_setting
 if [ "$SITE_STATE" = ok ] && [ "$SITE_URL" != "$SITE" ]; then fail 14 next.sitemismatch "old=$SITE" "new=$SITE_URL"; fi
 
-# Отправка отметки одной попыткой: MARK = recorded | repeated | rejected | disabled | preview | unknown | offline. Каждая отправка — один POST
+# Отправка отметки одной попыткой: MARK = recorded | repeated | rejected | disabled | preview | newer (422 engine: правила новее плагина) | unknown | offline. Каждая отправка — один POST
 send_mark() { # модуль шаг passed причина версия_проверки
   _body="{\"module\":\"$1\",\"step\":\"$2\",\"passed\":$3,\"check_version\":\"$5\",\"plugin_version\":\"$(plugin_version)\",\"os\":\"$(os_name)\""
   [ -n "$4" ] && _body="$_body,\"reason\":\"$4\""
@@ -57,7 +57,7 @@ send_mark() { # модуль шаг passed причина версия_пров�
   case "$HTTP_STATUS" in
     401) MARK=rejected ;;
     404) MARK=disabled ;;
-    422) MARK=unknown ;;
+    422) if [ "$(jstr "$TMPD/resp" error)" = engine ]; then MARK=newer; else MARK=unknown; fi ;;
     503) if [ "$(jstr "$TMPD/resp" error)" = preview ]; then MARK=preview; else MARK=offline; fi ;;
     *) MARK=offline ;;
   esac
@@ -178,6 +178,7 @@ case "$MARK" in
   rejected) rm -f "$TOKEN_FILE"; fail 11 report.rejected ;;
   disabled) fail 22 report.disabled "site=$SITE" ;;
   preview) fail 23 report.preview "site=$SITE" ;;
+  newer) fail 15 report.rulesnewer ;;
   unknown) fail 12 report.unknownstep ;;
   offline) fail 10 report.offline ;;
 esac

@@ -63,7 +63,7 @@ function Send-Mark([string]$module, [string]$step, [bool]$passed, [string]$reaso
     }
     if ($r.status -eq 401) { return 'rejected' }
     if ($r.status -eq 404) { return 'disabled' }
-    if ($r.status -eq 422) { return 'unknown' }
+    if ($r.status -eq 422) { if ($j -and (Test-Same ([string]$j.error) 'engine')) { return 'newer' }; return 'unknown' }
     if ($r.status -eq 503 -and $j -and (Test-Same ([string]$j.error) 'preview')) { return 'preview' }
     return 'offline'
 }
@@ -184,6 +184,7 @@ $res = Send-Mark $pModule $pStep $passed $reason ([string]$H['check_version'])
 if ($res -ceq 'rejected') { Remove-Token; Fail 'report.rejected' $null 11 }
 if ($res -ceq 'disabled') { Fail 'report.disabled' @{ site = $site } 22 }
 if ($res -ceq 'preview') { Fail 'report.preview' @{ site = $site } 23 }
+if ($res -ceq 'newer') { Fail 'report.rulesnewer' $null 15 }
 if ($res -ceq 'unknown') { Fail 'report.unknownstep' $null 12 }
 if ($res -ceq 'offline') { Fail 'report.offline' $null 10 }
 if ($passed) {

@@ -13,7 +13,7 @@ function Write-Out([string]$text) {
 }
 
 # Engine level of the check programs (the same as in check.sh and check.ps1) and the size limit of a task package in bytes
-$script:EngineLevel = 2
+$script:EngineLevel = 3
 $script:TaskMax = 262144
 
 # $vars is a hashtable or an [ordered] one: the values are put in the order of the keys, the same as the sh version does.
@@ -141,6 +141,11 @@ function Get-DefaultReason($ruleObjs, [string]$id) {
                 'min_items' { return 'too_few_items' }
                 'answer' { return 'answer_mismatch' }
                 'no_placeholder' { return 'placeholder_left' }
+                'contains_some' { return 'too_few_matches' }
+                'contains_number' { return 'number_missing' }
+                'each_item_has' { return 'item_without_mark' }
+                'fields_filled' { return 'field_empty' }
+                'file_unchanged' { return 'file_changed' }
             }
             return ''
         }
@@ -423,7 +428,7 @@ function Invoke-SiteTask([string]$site, [string]$json, [string]$token) {
     return @{ status = $status; bytes = $ms.ToArray(); big = $big }
 }
 
-function Test-StartPath([string]$p, [string]$mainFile) {
+function Test-StartPath([string]$p, [string]$mainFile, [bool]$csv = $false) {
     if ($p.Length -lt 1 -or $p.Length -gt 120) { return $false }
     if (-not [regex]::IsMatch($p, '^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*){0,3}$')) { return $false }
     $segs = $p.Split('/')
@@ -435,7 +440,7 @@ function Test-StartPath([string]$p, [string]$mainFile) {
         if ([regex]::IsMatch($b, '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$')) { return $false }
     }
     $base = $segs[$segs.Count - 1]
-    if (-not ($base.EndsWith('.md', [System.StringComparison]::Ordinal) -or $base.EndsWith('.txt', [System.StringComparison]::Ordinal))) { return $false }
+    if (-not ($base.EndsWith('.md', [System.StringComparison]::Ordinal) -or $base.EndsWith('.txt', [System.StringComparison]::Ordinal) -or ($csv -and $base.EndsWith('.csv', [System.StringComparison]::Ordinal)))) { return $false }
     $low = $base.ToLowerInvariant()
     if ($low -ceq 'claude.md' -or $low -ceq 'claude.local.md' -or $low -ceq 'agents.md') { return $false }
     return $true
@@ -526,7 +531,7 @@ function Read-TaskPackage([byte[]]$bytes) {
                 $p = $rest.Substring(7)
                 if ($starts.Count -ge 8) { return $badStart }
                 $low = $p.ToLowerInvariant()
-                if (-not (Test-StartPath $p ([string]$H['file'])) -or $seen.ContainsKey($low) -or $low -ceq ([string]$H['file']).ToLowerInvariant()) { return $badStart }
+                if (-not (Test-StartPath $p ([string]$H['file']) ([int]$H['check_version'] -ge 3)) -or $seen.ContainsKey($low) -or $low -ceq ([string]$H['file']).ToLowerInvariant()) { return $badStart }
                 $seen[$low] = $true
                 $cur = New-Object 'System.Collections.Generic.List[string]'
                 [void]$starts.Add(@{ path = $p; lines = $cur })
@@ -563,7 +568,7 @@ function Read-TaskPackage([byte[]]$bytes) {
 # Every folder on the way must be a real folder inside the learning folder (not a link); a missing one is created and checked again.
 # An existing file is not overwritten. A link (also a dangling one) or a non-file in place of the file is a refusal. The file is created with CreateNew.
 function Write-StartFile([string]$base, [string]$rel, [string]$text) {
-    if (-not (Test-StartPath $rel '')) { return $false }
+    if (-not (Test-StartPath $rel '' $true)) { return $false }
     if (-not (Test-Path -LiteralPath $base -PathType Container)) { return $false }
     $parts = $rel.Split('/')
     $cur = $base

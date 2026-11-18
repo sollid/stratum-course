@@ -8,11 +8,11 @@
     {
       "name": "course",
       "description": "Плагин курса Stratum (тренажёр по Claude Code): проверка установки, учебная папка, привязка компьютера к сайту курса, задания шагов с сайта, проверка работы на вашем компьютере и отправка отметки. Заданий в плагине нет: их отдаёт сайт курса.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "source": {
         "source": "archive",
-        "url": "https://github.com/sollid/stratum-course/releases/download/v0.2.0/stratum-course-0.2.0.zip",
-        "sha256": "e8b67f7359866b631ada85decfae998d41a0fae6ddda7574125e49ff1eda64ed"
+        "url": "https://github.com/sollid/stratum-course/releases/download/v0.3.0/stratum-course-0.3.0.zip",
+        "sha256": "6e25d5c8cc7273388446de98284f03aab6b9739043e0ee96abf06a1e39811f4e"
       }
     }
   ]

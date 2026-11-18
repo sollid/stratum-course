@@ -74,7 +74,10 @@ while [ "$attempt" -le 3 ]; do
   if [ "$HTTP_STATUS" = 401 ]; then rm -f "$TOKEN_FILE"; fail 11 report.rejected; fi
   [ "$HTTP_STATUS" = 404 ] && fail 22 report.disabled "site=$SITE"
   if [ "$HTTP_STATUS" = 503 ] && [ "$(jstr "$TMPD/resp" error)" = preview ]; then fail 23 report.preview "site=$SITE"; fi
-  [ "$HTTP_STATUS" = 422 ] && fail 12 report.unknownstep
+  if [ "$HTTP_STATUS" = 422 ]; then
+    [ "$(jstr "$TMPD/resp" error)" = engine ] && fail 15 report.rulesnewer
+    fail 12 report.unknownstep
+  fi
   if [ "$HTTP_STATUS" = 0 ] || [ "$HTTP_STATUS" = 429 ] || [ "$HTTP_STATUS" = 503 ]; then
     if [ "$attempt" -lt 3 ]; then
       w=$HTTP_RETRY; [ "$w" -lt 1 ] && w=$(( 2 * attempt )); [ "$w" -gt 15 ] && w=15
