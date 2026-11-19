@@ -6,11 +6,12 @@
   "type": "module",
   "description": "Плагин курса Stratum (тренажёр по Claude Code): каталог, архив и тесты движка.",
   "scripts": {
-    "test": "node tests/pair-matrix.mjs && node tests/selfcheck.mjs && node tests/pack-check.mjs",
+    "test": "node tests/pair-matrix.mjs && node tests/selfcheck.mjs && node tests/pack-check.mjs && node tests/kit-catalog-check.mjs",
     "pair": "node tests/pair-matrix.mjs",
     "selfcheck": "node tests/selfcheck.mjs",
     "pack": "node tools/pack.mjs",
-    "pack:check": "node tools/pack.mjs --check"
+    "pack:check": "node tools/pack.mjs --check",
+    "kit:check": "node tests/kit-catalog-check.mjs"
   },
   "devDependencies": {
     "fflate": "0.8.3"

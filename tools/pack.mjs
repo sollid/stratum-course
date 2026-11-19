@@ -69,9 +69,23 @@ export function catalogFor({ manifest, sha256, repo = DEFAULT_REPO, marketplace 
   };
 }
 
+// Записывает каталог. Если в файле уже есть каталог с тем же именем, заменяются только записи плагинов из catalog.plugins (по имени, на своём месте),
+// а чужие записи (например kit рядом с course) остаются как были: общий каталог ведут выгрузки двух плагинов.
 export function writeCatalog(path, catalog) {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(catalog, null, 2) + '\n');
+  let out = catalog;
+  if (existsSync(path)) {
+    try {
+      const prev = JSON.parse(readFileSync(path, 'utf8'));
+      if (prev?.name === catalog.name && Array.isArray(prev.plugins)) {
+        const mine = new Map(catalog.plugins.map((p) => [p.name, p]));
+        const kept = prev.plugins.map((p) => (mine.has(p?.name) ? mine.get(p.name) : p));
+        const added = catalog.plugins.filter((p) => !prev.plugins.some((q) => q?.name === p.name));
+        out = { ...catalog, plugins: [...kept, ...added] };
+      }
+    } catch { /* прежний файл не разобрать — пишется новый каталог */ }
+  }
+  writeFileSync(path, JSON.stringify(out, null, 2) + '\n');
 }
 
 // Сборка + запись архива в папку выпуска и каталога в дерево. Возвращает сведения для отчёта.
@@ -91,8 +105,10 @@ export function check({ src, catalog, repo = DEFAULT_REPO, marketplace = MARKETP
   const built = buildArchive(src);
   const want = catalogFor({ manifest, sha256: built.sha256, repo, marketplace });
   const have = JSON.parse(readFileSync(catalog, 'utf8'));
-  const same = JSON.stringify(want) === JSON.stringify(have);
-  return { same, sha256: built.sha256, haveSha: have?.plugins?.[0]?.source?.sha256 };
+  // Сверяется только запись этого плагина: в общем каталоге рядом могут стоять записи других плагинов (у них свой выпуск и своя сверка)
+  const own = (have?.plugins ?? []).filter((p) => p?.name === manifest.name);
+  const same = JSON.stringify(want) === JSON.stringify({ ...have, plugins: own });
+  return { same, sha256: built.sha256, haveSha: own[0]?.source?.sha256 };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

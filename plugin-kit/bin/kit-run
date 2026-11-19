@@ -1,0 +1,40 @@
+#!/bin/sh
+# Вход для навыков и хуков: kit-run <install|check|update|off|on|list|hook> <аргументы...>. Нужен только sh (Mac).
+# На Windows (в том числе из Git Bash) всегда запускается PowerShell-вариант: у него права на файлы данных настоящие, у sh в Git Bash их нет.
+here=$(cd "$(dirname "$0")" && pwd)
+name="$1"
+case "$name" in
+  install|check|update|off|on|list|hook) shift ;;
+  *) echo "error: usage: kit-run install|check|update|off|on|list|hook ..." >&2; exit 2 ;;
+esac
+# Хук при выключенной настройке выходит сразу, не запуская PowerShell (на Windows это секунда на каждый вызов инструмента)
+if [ "$name" = hook ]; then
+  on=0
+  [ "${CLAUDE_PLUGIN_OPTION_PROBE_HOOKS:-}" = true ] && on=1
+  for a in "$@"; do [ "$a" = true ] && on=1; done
+  [ "$on" = 1 ] || exit 0
+fi
+# Имя пакета в off и on проверяется здесь, до оболочки и до PowerShell: маленькие латинские буквы, цифры, дефис; имена устройств Windows нельзя
+case "$name" in
+  off|on)
+    # Перевод строки и возврат каретки отвергаются до grep: grep смотрит строки по одной и пропустил бы «негодная строка + годная»
+    nl='
+'
+    cr=$(printf '\r')
+    case "${1:-}" in
+      *"$nl"*|*"$cr"*)
+        printf '%b\n' "$(sed -n 's/^kit\.badid=//p' "$here/../scripts/messages.txt" | head -n 1 | tr -d '\r')"
+        exit 12 ;;
+    esac
+    if ! printf '%s' "${1:-}" | grep -Eq '^[a-z][a-z0-9-]{1,29}$' || printf '%s' "${1:-}" | grep -Eiq '^(con|prn|aux|nul|com[0-9]|lpt[0-9])$'; then
+      printf '%b\n' "$(sed -n 's/^kit\.badid=//p' "$here/../scripts/messages.txt" | head -n 1 | tr -d '\r')"
+      exit 12
+    fi ;;
+esac
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    # PowerShell — по полному пути из системной папки, а не по имени из PATH
+    ps="$(cygpath -u "${SYSTEMROOT:-${SystemRoot:-C:\Windows}}")/System32/WindowsPowerShell/v1.0/powershell.exe"
+    exec "$ps" -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$here/../scripts/run.ps1")" "$name" "$@" ;;
+  *) exec sh "$here/../scripts/kit.sh" "$name" "$@" ;;
+esac

@@ -14,6 +14,16 @@
         "url": "https://github.com/sollid/stratum-course/releases/download/v0.3.0/stratum-course-0.3.0.zip",
         "sha256": "6e25d5c8cc7273388446de98284f03aab6b9739043e0ee96abf06a1e39811f4e"
       }
+    },
+    {
+      "name": "kit",
+      "description": "Общие правила работы с Claude Code для команды: ставит пакеты правил по токену устройства, показывает, что стоит, и даёт выключить пакет.",
+      "version": "0.1.0",
+      "source": {
+        "source": "archive",
+        "url": "https://github.com/sollid/stratum-course/releases/download/kit-v0.1.0/stratum-kit-0.1.0.zip",
+        "sha256": "ec7bf2516559892ca75bed47cf3773381a8b140d797f33a519c77fdb74f0456d"
+      }
     }
   ]
 }

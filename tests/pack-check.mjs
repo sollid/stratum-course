@@ -33,8 +33,8 @@ ok(`сборка в трёх часовых поясах (${zones.join(', ')}) �
 
 const manifest = readManifest(src);
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
-const entry = catalog.plugins?.[0];
-ok('каталог: имя каталога и плагина, один плагин', catalog.name === MARKETPLACE_NAME && catalog.plugins.length === 1 && entry.name === manifest.name && !!catalog.owner?.name);
+const entry = catalog.plugins?.find((p) => p.name === manifest.name);
+ok('каталог: имя каталога, одна запись плагина курса (другие плагины рядом допускаются: у них свои записи и свой выпуск)', catalog.name === MARKETPLACE_NAME && catalog.plugins.filter((p) => p.name === manifest.name).length === 1 && !!entry && !!catalog.owner?.name);
 ok('каталог: источник archive, адрес https на github.com, имя файла по версии', entry.source?.source === 'archive' && /^https:\/\/github\.com\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+\/releases\/download\/v[0-9][0-9A-Za-z.+-]*\/[A-Za-z0-9._-]+\.zip$/.test(entry.source.url) && entry.source.url.endsWith(`/v${manifest.version}/${archiveName(manifest.version)}`), entry.source?.url);
 ok('каталог: sha256 — 64 шестнадцатеричных знака и равен sha256 свежего архива', /^[0-9a-f]{64}$/.test(entry.source.sha256) && entry.source.sha256 === a.sha256, `${entry.source.sha256} / ${a.sha256}`);
 ok('каталог: версия в записи равна версии в манифесте плагина', entry.version === manifest.version);
